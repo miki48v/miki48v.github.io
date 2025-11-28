@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Lista Kawaii ♡</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #fff, #fce4ec);
+            color: #333;
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+        }
+        h1 { text-align: center; color: #e91e63; margin-bottom: 20px; font-size: 28px; }
+        form {
+            background: rgba(255,255,255,0.95);
+            padding: 18px;
+            border-radius: 16px;
+            box-shadow: 0 6px 20px rgba(233,30,99,0.25);
+            margin: 0 auto 30px;
+            max-width: 750px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            border: 2px solid #fce4ec;
+        }
+        input, select { padding: 11px; border: 2px solid #e91e63; border-radius: 10px; background: #fff; font-size: 15px; }
+        button {
+            padding: 11px 28px;
+            background: #e91e63;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #c2185b; transform: scale(1.06); }
+
+        #list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 22px;
+            padding: 10px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .item {
+            background: rgba(255,255,255,0.97);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(233,30,99,0.3);
+            transition: all 0.35s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        .item:hover { transform: translateY(-12px); }
+
+        .cover { width: 100%; height:270px; object-fit:cover; display:block; }
+        .placeholder {
+            width:100%; height:270px;
+            background: linear-gradient(135deg,#f8bbd0,#ff80ab);
+            display:flex; align-items:center; justify-content:center;
+            font-size:5.5rem; color:white;
+        }
+
+        .type-icon {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            font-size: 2.4rem;
+            width: 56px;
+            height: 56px;
+            background: rgba(255,255,255,0.98);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .details {
+            padding: 18px;
+            display: none;
+            background: white;
+            border-top: 5px solid #e91e63;
+        }
+        .item.open .details { display: block; animation: slideDown 0.4s ease; }
+
+        .details h3 { margin:0 0 12px; color:#e91e63; font-size:1.5rem; text-align:center; }
+        .details p { margin:8px 0; text-align:center; }
+
+        .status {
+            padding:7px 16px;
+            border-radius:30px;
+            font-weight:bold;
+            font-size:0.95rem;
+            display:inline-block;
+        }
+        .pendiente    { background:#9c27b0; color:white; }
+        .en-simulcast { background:#ff9800; color:white; }
+        .viendo       { background:#2196f3; color:white; }
+        .terminado    { background:#4caf50; color:white; }
+
+        .actions { display:flex; gap:12px; margin-top:16px; }
+        .actions button {
+            flex:1; padding:10px; background:#fce4ec; color:#e91e63;
+            border:1px solid #e91e63; border-radius:10px;
+        }
+        .actions button:hover { background:#e91e63; color:white; }
+
+        @keyframes slideDown {
+            from { opacity:0; transform:translateY(-15px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Mi Lista Kawaii de Anime, Series y Pelis ♡</h1>
+
+    <form id="addForm">
+        <input type="text" id="title" placeholder="Título" required>
+        <input type="url" id="image" placeholder="URL de la portada (opcional)">
+        <select id="type">
+            <option value="Serie">Serie</option>
+            <option value="Anime">Anime</option>
+            <option value="Película">Película</option>
+        </select>
+        <select id="status">
+            <option value="Pendiente">Pendiente</option>
+            <option value="En simulcast">En simulcast</option>
+            <option value="Viendo">Viendo</option>
+            <option value="Terminado">Terminado</option>
+        </select>
+        <button type="submit">+ Añadir</button>
+    </form>
+
+    <div id="list"></div>
+
+    <script>
+        const list = document.getElementById('list');
+        const addForm = document.getElementById('addForm');
+        let items = JSON.parse(localStorage.getItem('mediaList')) || [];
+
+        function renderList() {
+            list.innerHTML = '';
+            items.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'item';
+
+                // ← AQUÍ LOS EMOJIS REALES QUE ME DIJISTE ♡
+                let emoji = '';
+                if (item.type === 'Anime')       emoji = 'Japan';
+                if (item.type === 'Película')    emoji = 'Camera';
+                if (item.type === 'Serie')       emoji = 'TV';
+
+                div.innerHTML = `
+                    <div class="type-icon">${emoji}</div>
+
+                    ${item.image ? 
+                        `<img src="${item.image}" class="cover" alt="${item.title}"
+                              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` 
+                        : ''
+                    }
+                    <div class="placeholder" style="display:${item.image?'none':'flex'};">?</div>
+
+                    <div class="details">
+                        <h3>${item.title}</h3>
+                        <p><strong>${item.type}</strong></p>
+                        <p class="status ${item.status.toLowerCase().replace(' ', '-')}">Estado: ${item.status}</p>
+                        <div class="actions">
+                            <button onclick="editItem(${index})">Editar</button>
+                            <button onclick="deleteItem(${index})">Eliminar</button>
+                        </div>
+                    </div>
+                `;
+
+                div.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'BUTTON') return;
+                    div.classList.toggle('open');
+                });
+
+                list.appendChild(div);
+            });
+        }
+
+        addForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const title  = document.getElementById('title').value.trim();
+            const image  = document.getElementById('image').value.trim();
+            const type   = document.getElementById('type').value;
+            const status = document.getElementById('status').value;
+
+            if (title) {
+                items.push({ title, image, type, status });
+                localStorage.setItem('mediaList', JSON.stringify(items));
+                renderList();
+                addForm.reset();
+            }
+        });
+
+        window.editItem = function(index) {
+            const item = items[index];
+            document.getElementById('title').value  = item.title;
+            document.getElementById('image').value  = item.image || '';
+            document.getElementById('type').value   = item.type;
+            document.getElementById('status').value = item.status;
+            deleteItem(index);
+        };
+
+        window.deleteItem = function(index) {
+            items.splice(index, 1);
+            localStorage.setItem('mediaList', JSON.stringify(items));
+            renderList();
+        };
+
+        renderList();
+    </script>
+</body>
+</html>
