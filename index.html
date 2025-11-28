@@ -1,269 +1,148 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista Series que ver</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #ffeef8, #ff99cc);
-            color: #333;
-            margin: 0;
-            padding: 15px 10px;
-            min-height: 100vh;
-            position: relative;
-        }
-        h1 {
-            text-align: center;
-            color: #d81b60;
-            font-size: 32px;
-            margin: 10px 0 30px;
-            text-shadow: 0 3px 8px rgba(216,27,96,0.3);
-        }
-
-        form {
-            background: rgba(255,255,255,0.97);
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(216,27,96,0.4);
-            margin: 0 auto 35px;
-            max-width: 780px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px;
-            justify-content: center;
-            border: 3px solid #ff69b4;
-        }
-        input, select { padding: 12px; border: 3px solid #ff69b4; border-radius: 12px; background: white; font-size: 16px; }
-        button {
-            padding: 12px 32px;
-            background: #ff69b4;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-            box-shadow: 0 4px 15px rgba(255,105,180,0.4);
-        }
-        button:hover { background: #ff1493; transform: translateY(-3px); }
-
-        #list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-            gap: 24px;
-            padding: 10px;
-            max-width: 1450px;
-            margin: 0 auto 80px;
-        }
-
-        .item {
-            background: white;
-            border-radius: 22px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(255,105,180,0.35);
-            transition: all 0.4s ease;
-            cursor: pointer;
-            position: relative;
-        }
-        .item:hover { transform: translateY(-15px); }
-
-        .cover { width:100%; height:280px; object-fit:cover; }
-        .placeholder {
-            width:100%; height:280px;
-            background: linear-gradient(135deg,#ff69b4,#ff1493);
-            display:flex; align-items:center; justify-content:center;
-            font-size:6rem; color:white;
-        }
-
-        .type-icon {
-            position: absolute;
-            top: 16px; left: 16px;
-            font-size: 2.6rem;
-            width: 60px; height: 60px;
-            background: rgba(255,255,255,0.98);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-            z-index: 10;
-        }
-
-        .details {
-            padding: 20px;
-            display: none;
-            background: white;
-            border-top: 6px solid #ff69b4;
-        }
-        .item.open .details { display: block; animation: slideDown 0.5s ease; }
-
-        .details h3 { margin:0 0 12px; color:#d81b60; font-size:1.6rem; text-align:center; }
-        .details p { margin:10px 0; text-align:center; font-size:15px; }
-
-        .status {
-            padding:8px 18px; border-radius:30px; font-weight:bold; font-size:1rem;
-            display:inline-block; color:white;
-        }
-        .pendiente    { background:#e91e63; }
-        .en-simulcast { background:#ff9800; }
-        .viendo       { background:#2196f3; }
-        .terminado    { background:#4caf50; }
-
-        .actions { display:flex; gap:14px; margin-top:18px; }
-        .actions button {
-            flex:1; padding:12px; background:#ffebee; color:#d81b60;
-            border:2px solid #ff69b4; border-radius:12px; font-weight:bold;
-        }
-        .actions button:hover { background:#ff69b4; color:white; }
-
-        /* Corazoncito discreto abajo a la derecha */
-        .hidden-heart {
-            position: fixed;
-            bottom: 20px;
-            right: 25px;
-            font-size: 28px;
-            cursor: pointer;
-            opacity: 0.25;
-            transition: all 0.4s;
-            z-index: 100;
-        }
-        .hidden-heart:hover { opacity: 0.7; transform: scale(1.3); }
-
-        /* Mensaje secreto */
-        #secretMessage {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255,20,147,0.95);
-            color: white;
-            padding: 30px 50px;
-            border-radius: 30px;
-            font-size: 28px;
-            font-weight: bold;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
-            z-index: 1000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.6s ease;
-        }
-        #secretMessage.show {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        @keyframes slideDown {
-            from { opacity:0; transform:translateY(-20px); }
-            to   { opacity:1; transform:translateY(0); }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista Series que ver</title>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <style>
+    body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#ffeef8,#ff99cc);color:#333;margin:0;padding:15px 10px;min-height:100vh;position:relative}
+    h1{text-align:center;color:#d81b60;font-size:32px;margin:10px 0 30px;text-shadow:0 3px 8px rgba(216,27,96,.3)}
+    form{background:rgba(255,255,255,.97);padding:20px;border-radius:20px;box-shadow:0 10px 30px rgba(216,27,96,.4);margin:0 auto 35px;max-width:780px;display:flex;flex-wrap:wrap;gap:14px;justify-content:center;border:3px solid #ff69b4}
+    input,select{padding:12px;border:3px solid #ff69b4;border-radius:12px;background:white;font-size:16px}
+    button{padding:12px 32px;background:#ff69b4;color:white;border:none;border-radius:12px;cursor:pointer;font-weight:bold;font-size:16px;box-shadow:0 4px 15px rgba(255,105,180,.4)}
+    button:hover{background:#ff1493;transform:translateY(-3px)}
+    #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:24px;padding:10px;max-width:1450px;margin:0 auto 100px}
+    .item{background:white;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(255,105,180,.35);transition:all .4s;cursor:pointer;position:relative}
+    .item:hover{transform:translateY(-15px)}
+    .cover{width:100%;height:280px;object-fit:cover}
+    .placeholder{width:100%;height:280px;background:linear-gradient(135deg,#ff69b4,#ff1493);display:flex;align-items:center;justify-content:center;font-size:6rem;color:white}
+    .type-icon{position:absolute;top:16px;left:16px;font-size:2.6rem;width:60px;height:60px;background:rgba(255,255,255,.98);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,.3);z-index:10}
+    .details{padding:20px;display:none;background:white;border-top:6px solid #ff69b4}
+    .item.open .details{display:block;animation:slideDown .5s}
+    .details h3{margin:0 0 12px;color:#d81b60;font-size:1.6rem;text-align:center}
+    .status{padding:8px 18px;border-radius:30px;color:white;font-weight:bold;display:inline-block}
+    .pendiente{background:#e91e63}.en-simulcast{background:#ff9800}.viendo{background:#2196f3}.terminado{background:#4caf50}
+    .actions{display:flex;gap:14px;margin-top:18px}
+    .actions button{flex:1;padding:12px;background:#ffebee;color:#d81b60;border:2px solid #ff69b4;border-radius:12px;font-weight:bold}
+    .actions button:hover{background:#ff69b4;color:white}
+    .hidden-heart{position:fixed;bottom:20px;right:25px;font-size:28px;cursor:pointer;opacity:.25;transition:all .4s}
+    .hidden-heart:hover{opacity:.7;transform:scale(1.3)}
+    #secretMessage{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(255,20,147,.95);color:white;padding:30px 50px;border-radius:30px;font-size:28px;font-weight:bold;box-shadow:0 15px 40px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .6s;z-index:1000}
+    #secretMessage.show{opacity:1;pointer-events:all}
+    @keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+  </style>
 </head>
 <body>
 
-    <h1>Lista Series que ver</h1>
+  <h1>Lista Series que ver</h1>
 
-    <form id="addForm">
-        <input type="text" id="title" placeholder="Título" required>
-        <input type="url" id="image" placeholder="URL de la portada (opcional)">
-        <select id="type">
-            <option value="Serie">Serie</option>
-            <option value="Anime">Anime</option>
-            <option value="Película">Película</option>
-        </select>
-        <select id="status">
-            <option value="Pendiente">Pendiente</option>
-            <option value="En simulcast">En simulcast</option>
-            <option value="Viendo">Viendo</option>
-            <option value="Terminado">Terminado</option>
-        </select>
-        <button type="submit">+ Añadir</button>
-    </form>
+  <form id="addForm">
+    <input type="text" id="title" placeholder="Título" required>
+    <input type="url" id="image" placeholder="URL de la portada (opcional)">
+    <select id="type">
+      <option value="Serie">Serie</option>
+      <option value="Anime">Anime</option>
+      <option value="Película">Película</option>
+    </select>
+    <select id="status">
+      <option value="Pendiente">Pendiente</option>
+      <option value="En simulcast">En simulcast</option>
+      <option value="Viendo">Viendo</option>
+      <option value="Terminado">Terminado</option>
+    </select>
+    <button type="submit">+ Añadir</button>
+  </form>
 
-    <div id="list"></div>
+  <div id="list"></div>
 
-    <!-- Corazoncito mágico -->
-    <div class="hidden-heart" onclick="document.getElementById('secretMessage').classList.toggle('show')">
-        <3
-    </div>
+  <!-- Corazoncito secreto -->
+  <div class="hidden-heart" onclick="document.getElementById('secretMessage').classList.toggle('show')">
+    Hidden Heart
+  </div>
+  <div id="secretMessage">Ana te quiero un montón Hidden Heart</div>
 
-    <!-- Mensaje secreto (no aparece en el código inspeccionando fácil) -->
-    <div id="secretMessage">Ana te quiero un montón <3 </div>
+  <script>
+    // TU CONFIGURACIÓN DE FIREBASE (la creas en 2 minutos)
+    const firebaseConfig = {
+      apiKey: "AIzaSyB2zTjX5Y9K8mP7vR9qW8vX9vY8vZ9vA0", // CAMBIA ESTO
+      authDomain: "lista-series-ana.firebaseapp.com",
+      databaseURL: "https://lista-series-ana-default-rtdb.firebaseio.com",
+      projectId: "lista-series-ana",
+      storageBucket: "lista-series-ana.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:1234567890:web:abcdef123456"
+    };
 
-    <script>
-        const list = document.getElementById('list');
-        const addForm = document.getElementById('addForm');
-        let items = JSON.parse(localStorage.getItem('mediaList')) || [];
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const itemsRef = db.ref('lista');
 
-        function renderList() {
-            list.innerHTML = '';
-            items.forEach((item, index) => {
-                const div = document.createElement('div');
-                div.className = 'item';
+    const list = document.getElementById('list');
+    const addForm = document.getElementById('addForm');
 
-                let emoji = '';
-                if (item.type === 'Anime')       emoji = 'JP';
-                if (item.type === 'Película')    emoji = '🎥';
-                if (item.type === 'Serie')       emoji = '📺';
+    function renderList(snapshot) {
+      list.innerHTML = '';
+      const data = snapshot.val() || {};
+      const items = Object.entries(data).map(([id, item]) => ({id, ...item}));
 
-                div.innerHTML = `
-                    <div class="type-icon">${emoji}</div>
-                    ${item.image ? `<img src="${item.image}" class="cover" alt="${item.title}"
-                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` : ''}
-                    <div class="placeholder" style="display:${item.image?'none':'flex'};">?</div>
+      items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item';
 
-                    <div class="details">
-                        <h3>${item.title}</h3>
-                        <p><strong>${item.type}</strong></p>
-                        <p class="status ${item.status.toLowerCase().replace(' ', '-')}">Estado: ${item.status}</p>
-                        <div class="actions">
-                            <button onclick="editItem(${index})">Editar</button>
-                            <button onclick="deleteItem(${index})">Eliminar</button>
-                        </div>
-                    </div>
-                `;
+        let emoji = '';
+        if (item.type === 'Anime') emoji = 'Japan';
+        if (item.type === 'Película') emoji = 'Camera';
+        if (item.type === 'Serie') emoji = 'TV';
 
-                div.addEventListener('click', (e) => {
-                    if (e.target.tagName === 'BUTTON') return;
-                    div.classList.toggle('open');
-                });
+        div.innerHTML = `
+          <div class="type-icon">${emoji}</div>
+          ${item.image ? `<img src="${item.image}" class="cover" alt="${item.title}"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` : ''}
+          <div class="placeholder" style="display:${item.image?'none':'flex'};">?</div>
+          <div class="details">
+            <h3>${item.title}</h3>
+            <p><strong>${item.type}</strong></p>
+            <p class="status ${item.status.toLowerCase().replace(' ','-')}">Estado: ${item.status}</p>
+            <div class="actions">
+              <button onclick="deleteItem('${item.id}')">Eliminar</button>
+            </div>
+          </div>
+        `;
 
-                list.appendChild(div);
-            });
-        }
-
-        addForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const title  = document.getElementById('title').value.trim();
-            const image  = document.getElementById('image').value.trim();
-            const type   = document.getElementById('type').value;
-            const status = document.getElementById('status').value;
-
-            if (title) {
-                items.push({ title, image, type, status });
-                localStorage.setItem('mediaList', JSON.stringify(items));
-                renderList();
-                addForm.reset();
-            }
+        div.addEventListener('click', e => {
+          if (e.target.tagName === 'BUTTON') return;
+          div.classList.toggle('open');
         });
 
-        window.editItem = function(index) {
-            const item = items[index];
-            document.getElementById('title').value  = item.title;
-            document.getElementById('image').value  = item.image || '';
-            document.getElementById('type').value   = item.type;
-            document.getElementById('status').value = item.status;
-            deleteItem(index);
-        };
+        list.appendChild(div);
+      });
+    }
 
-        window.deleteItem = function(index) {
-            items.splice(index, 1);
-            localStorage.setItem('mediaList', JSON.stringify(items));
-            renderList();
-        };
+    // Escuchar cambios en tiempo real
+    itemsRef.on('value', renderList);
 
-        renderList();
-    </script>
+    addForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const title = document.getElementById('title').value.trim();
+      const image = document.getElementById('image').value.trim();
+      const type = document.getElementById('type').value;
+      const status = document.getElementById('status').value;
+
+      if (title) {
+        itemsRef.push({ title, image, type, status });
+        addForm.reset();
+      }
+    });
+
+    window.deleteItem = function(id) {
+      if (confirm('¿Borrar esta entrada?')) {
+        itemsRef.child(id).remove();
+      }
+    };
+  </script>
 </body>
 </html>
