@@ -185,11 +185,11 @@
 
     <!-- Corazoncito mágico -->
     <div class="hidden-heart" onclick="document.getElementById('secretMessage').classList.toggle('show')">
-        Hidden Heart
+        <3 
     </div>
 
     <!-- Mensaje secreto (no aparece en el código inspeccionando fácil) -->
-    <div id="secretMessage">Ana te quiero un montón Hidden Heart</div>
+    <div id="secretMessage">Ana te quiero un montón <3 </div>
 
     <script>
         const list = document.getElementById('list');
@@ -203,8 +203,8 @@
                 div.className = 'item';
 
                 let emoji = '';
-                if (item.type === 'Anime')       emoji = 'Japan';
-                if (item.type === 'Película')    emoji = 'Camera';
+                if (item.type === 'Anime')       emoji = 'JP';
+                if (item.type === 'Película')    emoji = 'S';
                 if (item.type === 'Serie')       emoji = 'TV';
 
                 div.innerHTML = `
