@@ -334,3 +334,20 @@ function showToast(text, type = 'success', duration = 3000) {
         toastEl.hidden = true;
     }, duration);
 }
+
+// Backwards-compatibility aliases for older HTML (inline handlers / backup files)
+// Some older versions used global names like editItem/deleteItem/exportJSON/importJSON.
+// Expose those to window so older markup keeps working.
+try {
+    // prefer the canonical functions we defined
+    window.editItem = window.editItem || startEdit;
+} catch (e) {}
+try {
+    window.deleteItem = window.deleteItem || deleteItem;
+} catch (e) {}
+try {
+    window.exportJSON = window.exportJSON || exportJSON;
+} catch (e) {}
+try {
+    window.importJSON = window.importJSON || importJSON;
+} catch (e) {}
