@@ -6,6 +6,8 @@ body {
     padding: 15px 10px;
     min-height: 100vh;
     position: relative;
+    /* create a stacking context so our shiny outline can sit underneath the card content */
+    z-index: 1;
 }
 h1 {
     text-align: center;
@@ -86,28 +88,96 @@ button:hover { background: #ff1493; transform: translateY(-3px); }
     z-index: 10;
 }
 
+/* Color the card edge/shadow according to the status class added by JS */
+.item.pendiente { box-shadow: 0 10px 30px rgba(233,30,99,0.08); }
+.item.en-simulcast { box-shadow: 0 10px 30px rgba(255,152,0,0.08); }
+.item.viendo { box-shadow: 0 10px 30px rgba(33,150,243,0.08); }
+.item.terminado { box-shadow: 0 10px 30px rgba(76,175,80,0.08); }
+
+/* Shiny, transparent contour: blurred glow + crisp translucent stroke via pseudo-elements */
+.item::before, .item::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    border-radius: 26px; /* slightly larger than card to form contour */
+    z-index: 0; /* sit beneath card content (card has z-index:1) */
+}
+.item::before {
+    /* larger, more noticeable soft glow */
+    inset: -14px;
+    filter: blur(20px);
+    opacity: 1; /* fully visible but still translucent due to colors */
+    transition: opacity .18s ease, transform .18s ease;
+}
+.item::after {
+    /* stronger crisp stroke outside the card */
+    inset: -6px;
+    border: 2px solid transparent; /* width increased for heft */
+    mix-blend-mode: screen;
+    opacity: 1;
+    transition: opacity .18s ease, transform .18s ease;
+    box-shadow: 0 0 16px rgba(255,255,255,0.02) inset; /* subtle inner highlight */
+}
+
+/* stronger emphasis when active/open */
+.item.open.pendiente { box-shadow: 0 14px 40px rgba(233,30,99,0.12); }
+.item.open.en-simulcast { box-shadow: 0 14px 40px rgba(255,152,0,0.12); }
+.item.open.viendo { box-shadow: 0 14px 40px rgba(33,150,243,0.12); }
+.item.open.terminado { box-shadow: 0 14px 40px rgba(76,175,80,0.12); }
+
+/* status-specific glow + stroke colors */
+.item.pendiente::before { background: linear-gradient(90deg, rgba(233,30,99,0.30), rgba(255,105,180,0.12)); }
+.item.pendiente::after { border-color: rgba(233,30,99,0.42); box-shadow: 0 0 28px rgba(233,30,99,0.28); }
+
+.item.en-simulcast::before { background: linear-gradient(90deg, rgba(255,152,0,0.30), rgba(255,196,94,0.12)); }
+.item.en-simulcast::after { border-color: rgba(255,152,0,0.42); box-shadow: 0 0 28px rgba(255,152,0,0.26); }
+
+.item.viendo::before { background: linear-gradient(90deg, rgba(33,150,243,0.30), rgba(84,175,255,0.12)); }
+.item.viendo::after { border-color: rgba(33,150,243,0.42); box-shadow: 0 0 28px rgba(33,150,243,0.26); }
+
+.item.terminado::before { background: linear-gradient(90deg, rgba(76,175,80,0.30), rgba(144,215,140,0.12)); }
+.item.terminado::after { border-color: rgba(76,175,80,0.42); box-shadow: 0 0 28px rgba(76,175,80,0.22); }
+
+/* strengthen the glow when the card is open */
+.item.open::before { filter: blur(24px); transform: scale(1.04); opacity: 1; }
+.item.open::after { box-shadow: 0 0 36px rgba(0,0,0,0.03); opacity: 1; }
+
         .details {
-            /* absolute overlay positioned under the item, doesn't affect layout */
+            /* Floats as a compact action menu inside the card (top-right) so the compact title/status stay visible.
+               On very small screens it will still drop below the card to avoid covering content. */
             position: absolute;
-            left: 0; right: 0;
-            top: 100%; /* appear just below the item */
-            margin-top: 8px;
-            padding: 18px 20px;
+            top: 10px;
+            /* align into the card's top-right so it stays visually anchored and never escapes the card */
+            right: 12px;
+            left: auto;
+            width: auto;
+            min-width: 120px;
+            max-width: 260px;
+            padding: 10px 12px;
             background: white;
-            border-radius: 14px;
+            border-radius: 12px;
             box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-            border: 3px solid rgba(255,105,180,0.12);
+            border: 2px solid rgba(255,105,180,0.08);
             opacity: 0;
             pointer-events: none;
-            transform: translateY(-6px);
-            transition: all .22s ease;
-            z-index: 30;
+            /* place snugly at top-right and lift slightly for subtle motion */
+            transform: translateY(-6px) scale(.98);
+            /* don't allow it to overflow the card container */
+            max-width: calc(100% - 24px);
+            transition: opacity .18s ease, transform .18s ease;
+            z-index: 80;
+            text-align: center;
         }
         .item.open .details { opacity: 1; transform: translateY(0); pointer-events: auto; }
 
+        /* On small viewports move the actions panel below the card so it doesn't overlap essential UI */
+        @media (max-width: 420px) {
+            .details { top: 100%; left: 0; right: 0; margin-top: 8px; transform: translateY(-6px) scale(1); }
+        }
+
     /* When details contains only actions, tighten layout */
-    .details .actions { justify-content: center; gap: 12px; }
-    .details .actions button { padding: 10px 16px; border-radius: 10px; }
+    .details .actions { justify-content: center; gap: 8px; display:flex; align-items:center; flex-wrap:wrap; }
+    .details .actions button { padding: 8px 10px; border-radius: 10px; min-width:72px; flex: none; font-weight:800; }
 
 .details h3 { margin:0 0 12px; color:#d81b60; font-size:1.6rem; text-align:center; }
 .details p { margin:10px 0; text-align:center; font-size:15px; }
@@ -206,6 +276,62 @@ button:hover { background: #ff1493; transform: translateY(-3px); }
     .menu-toggle { padding: 6px 8px; font-size: 0.95rem; }
 }
 
+/* Games page theme (blue & white) */
+/* stronger neon-blue skin for the games page: inverted, more neon, less white */
+body.games-theme { background: linear-gradient(135deg,#001022 8%,#072a49 55%); color: #dbefff; }
+body.games-theme h1 { color: #8fd3ff; text-shadow: 0 6px 18px rgba(80,170,255,0.18); }
+body.games-theme .menu-toggle { border-color: rgba(80,170,255,0.18); color: #9fd8ff; background: rgba(255,255,255,0.03); }
+body.games-theme .menu-toggle:hover { background: rgba(80,170,255,0.06); }
+body.games-theme .panel-button { background: linear-gradient(90deg,#00b0ff,#0058ff); box-shadow: 0 10px 30px rgba(0,120,255,0.18); color:white }
+body.games-theme .panel-button:hover { transform: translateY(-1px); }
+body.games-theme .btn-primary { background: linear-gradient(90deg,#00b0ff,#0058ff); box-shadow: 0 10px 30px rgba(0,120,255,0.18); }
+body.games-theme .btn-ghost { background: rgba(255,255,255,0.03); color:#a7e6ff; border-color: rgba(80,170,255,0.06); }
+body.games-theme .filter-btn { background: rgba(255,255,255,0.03); color:#bfeeff; border-color: rgba(80,170,255,0.06); }
+body.games-theme .filter-btn.active { background: linear-gradient(90deg, rgba(0,180,255,0.08), rgba(0,90,255,0.06)); color:#cbeeff; border-color: rgba(0,180,255,0.12); box-shadow: 0 12px 34px rgba(80,170,255,0.06); }
+body.games-theme .card-title-compact { color: #6ad1ff; }
+body.games-theme .type-chip { color: #007acc; border-color: rgba(80,170,255,0.06); background: rgba(255,255,255,0.02); }
+body.games-theme input, body.games-theme select { background: rgba(255,255,255,0.02); border-color: rgba(80,170,255,0.12); color: #dbefff }
+body.games-theme #autofillBtnGames, body.games-theme #autofillBtnGames:hover { background: linear-gradient(90deg,#00b0ff,#00e0ff); color: #001; box-shadow: 0 8px 26px rgba(0,160,255,0.12); }
+body.games-theme .card-body { background: rgba(255,255,255,0.03); }
+body.games-theme .cover-wrap { background: linear-gradient(135deg,#02203a,#012033); }
+body.games-theme .hidden-heart { color:#8fe3ff; }
+
+/* Filter controls above the list */
+.filters { max-width: 1200px; margin: 10px auto 0; display:flex; justify-content:center; padding: 6px 10px; }
+.filters-inner { display:flex; gap:10px; align-items:center; /* keep everything on one logical row */
+    flex-wrap:nowrap; justify-content:space-between; width:100%; }
+.filter-left { display:flex; gap:10px; align-items:center; flex:1 1 auto; min-width: 0; overflow-x:auto; }
+.filter-left::-webkit-scrollbar { height: 8px; }
+.filter-left::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.06); border-radius: 999px; }
+.filter-right { display:flex; gap:10px; align-items:center; flex:0 0 auto; }
+
+/* extra form inputs for episodes/duration and autofill */
+#episodes, #duration { max-width: 140px; }
+#autofillBtn { padding: 10px 14px; border-radius: 10px; background:#ffdff6; color:#d81b60; border:2px solid rgba(255,105,180,0.2); font-weight:700; cursor:pointer; }
+#autofillBtn:hover { transform: translateY(-2px); background: linear-gradient(180deg,#fff,#ffdff6); }
+.filter-btn { padding:8px 14px; border-radius:999px; border:2px solid rgba(255,105,180,0.12); background: #fff; color:#d81b60; font-weight:800; cursor:pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6); display:flex; align-items:center; gap:8px; }
+.filter-btn:hover, .filter-btn:focus { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(216,27,96,0.08); outline:none; }
+.filter-btn.active { background: linear-gradient(90deg,#ffdff0,#ffeefe); color:#b0003a; border-color: rgba(216,27,96,0.14); box-shadow: 0 10px 26px rgba(216,27,96,0.08); }
+
+@media (max-width: 520px) {
+    .filters-inner { gap:8px; }
+    .filter-btn { padding: 6px 10px; font-size: 0.9rem; }
+    /* let left group scroll horizontally on very small screens instead of wrapping to new row */
+    .filter-left { overflow-x:auto; }
+    .filter-right { flex-shrink: 0; }
+}
+
+/* count badges next to filters */
+.filter-btn .count { background: rgba(255,255,255,0.9); color:#d81b60; font-weight:800; font-size:0.9rem; padding:2px 8px; border-radius:999px; border:1px solid rgba(216,27,96,0.06); margin-left:6px; }
+
+/* search and type filter */
+#searchInput { padding:8px 10px; border-radius:999px; border: 2px solid rgba(255,105,180,0.08); min-width:160px; }
+#typeFilter { padding:8px 10px; border-radius:999px; border: 2px solid rgba(255,105,180,0.08); background: #fff; color:#d81b60; font-weight:700; }
+
+@media (max-width: 520px) {
+    #searchInput { min-width: 110px; }
+}
+
 @media (max-width: 420px) {
     .menu { left: 6px; top: 6px; }
 }
@@ -225,6 +351,7 @@ button:hover { background: #ff1493; transform: translateY(-3px); }
 .panel-desc { color:#666; margin:0 0 10px; }
 .panel-button { padding:10px 14px; border-radius:10px; background:#ff69b4; color:white; font-weight:800; border:none; cursor:pointer; }
 .panel-button:hover { background:#ff1493; transform:translateY(-1px); }
+#tmdbKeyInput { padding:8px 10px; border-radius:12px; border:2px solid rgba(255,105,180,0.12); width:100%; box-sizing:border-box; }
 
 @media (max-width: 700px) {
     .side-panel { width: 100%; }
@@ -280,3 +407,42 @@ button:focus, input:focus, select:focus { outline: 3px solid rgba(255,20,147,0.2
     from { opacity:0; transform:translateY(-20px); }
     to   { opacity:1; transform:translateY(0); }
 }
+
+/* Landing / hero page styles */
+.landing { min-height: 100vh; display:flex; align-items:center; justify-content:center; background: radial-gradient(circle at 10% 20%, rgba(255,240,250,0.9), transparent 20%), linear-gradient(135deg,#fff7fb,#ffdfe9); padding: 30px; }
+.landing-hero { display:flex; gap:40px; align-items:center; max-width:1200px; width:100%; }
+.landing-card { background: linear-gradient(180deg,#fff,#fff); padding: 34px; border-radius: 22px; box-shadow: 0 18px 60px rgba(216,27,96,0.14); flex: 1 1 480px; }
+.landing-logo { font-size:48px; width:86px; height:86px; display:flex; align-items:center; justify-content:center; border-radius:18px; background: linear-gradient(90deg,#fff5fb,#ffe4f3); box-shadow: 0 8px 22px rgba(216,27,96,0.08); margin-bottom:8px; }
+.landing-title { color:#c61b5f; font-size:28px; margin:6px 0 8px; }
+.landing-sub { color:#666; margin-bottom:16px; }
+.landing-actions { display:flex; gap:14px; margin-top:8px; }
+.btn-primary { display:inline-block; padding:12px 22px; background: linear-gradient(90deg,#ff69b4,#ff1493); color:white; border-radius:12px; text-decoration:none; font-weight:800; box-shadow: 0 8px 28px rgba(255,105,180,0.16); }
+.btn-ghost { display:inline-block; padding:12px 18px; border-radius:12px; background: rgba(255,255,255,0.85); color:#d81b60; border:2px solid rgba(255,105,180,0.06); text-decoration:none; font-weight:700; }
+.landing-foot { margin-top:18px; color:#777; }
+.landing-hero-art { flex: 0 0 360px; display:flex; align-items:center; justify-content:center; }
+.landing-hero-art img { max-width:360px; border-radius:12px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); }
+
+/* small nav link for keyboard users */
+.mini-nav { position: fixed; left: 12px; bottom: 18px; font-weight:700; background: rgba(255,255,255,0.92); padding:8px 10px; border-radius:10px; border:1px solid rgba(255,180,210,0.5); color:#d81b60; box-shadow: 0 6px 18px rgba(216,27,96,0.06); z-index: 400; }
+
+@media (max-width: 900px) {
+    .landing-hero { flex-direction:column-reverse; padding: 18px; }
+    .landing-hero-art { width:100%; max-width:420px; }
+}
+
+/* Autofill modal specific */
+.autofill-modal { position: fixed; left: 50%; top: 12%; transform: translateX(-50%) translateY(-6px); width: 720px; max-width: 95%; background: linear-gradient(180deg,#fff,#fff); border-radius: 14px; padding: 12px; box-shadow: 0 18px 50px rgba(0,0,0,0.2); z-index: 220; display: none; }
+.autofill-modal[aria-hidden="false"] { display: block; }
+.autofill-inner { position: relative; padding: 18px; }
+.autofill-loader { padding: 8px 12px; color:#d81b60; font-weight:700; }
+.autofill-results { display:flex; flex-direction:column; gap:10px; max-height:300px; overflow:auto; padding:6px; }
+.autofill-item { display:flex; gap:12px; align-items:center; padding:8px; border-radius:10px; border:1px solid rgba(255,105,180,0.08); cursor:pointer; background: linear-gradient(180deg,#fff,#fff); }
+.autofill-item:hover { background: linear-gradient(180deg,#fff6fb,#fff); transform: translateY(-2px); }
+.autofill-thumb { width:72px; height:72px; object-fit:cover; border-radius:8px; flex: 0 0 auto; }
+.autofill-meta { flex:1 1 auto; }
+.autofill-title { font-weight:800; color:#d81b60; margin-bottom:6px; }
+.autofill-sub { font-size:0.9rem; color:#666; }
+.autofill-actions { display:flex; gap:8px; }
+.autofill-add { padding:6px 10px; border-radius:8px; background:#ff69b4; color:white; font-weight:800; border:none; }
+.autofill-add:hover { background:#ff1493; }
+.autofill-small { font-size:0.85rem; color:#999; }

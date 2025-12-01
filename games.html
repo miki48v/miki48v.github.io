@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de videojuegos - Steam</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="games-theme">
+
+    <div class="header-row">
+        <h1>Mi biblioteca de videojuegos</h1>
+        <div class="menu" id="menu">
+            <button id="menuToggle" class="menu-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="sidePanel">
+                Opciones <span class="chev" aria-hidden="true">▾</span>
+            </button>
+        </div>
+    </div>
+
+    <form id="addForm" aria-label="Añadir videojuego">
+        <label for="title" class="sr-only">Título</label>
+        <input type="text" id="title" placeholder="Título del juego" required>
+        <label for="image" class="sr-only">URL de la portada (opcional)</label>
+        <input type="url" id="image" placeholder="URL de la portada (opcional)">
+        <select id="type">
+            <option value="PC (Steam)">PC (Steam)</option>
+            <option value="AAA">AAA</option>
+            <option value="Indie">Indie</option>
+        </select>
+        <label for="platform" class="sr-only">Plataforma</label>
+        <input type="text" id="platform" placeholder="Plataforma (ej. Steam)" value="Steam">
+        <label for="status" class="sr-only">Estado</label>
+        <select id="status">
+            <option value="Wishlist">Wishlist</option>
+            <option value="Jugando">Jugando</option>
+            <option value="Completado">Completado</option>
+            <option value="Abandonado">Abandonado</option>
+        </select>
+        <label for="achievements" class="sr-only">Logros (cantidad)</label>
+        <input type="number" id="achievements" placeholder="Logros (opcional)" min="0">
+        <label for="difficulty" class="sr-only">Dificultad de platinar</label>
+        <select id="difficulty">
+            <option value="Unknown">Dificultad desconocida</option>
+            <option value="Easy">Fácil</option>
+            <option value="Medium">Media</option>
+            <option value="Hard">Difícil</option>
+        </select>
+        <button id="autofillBtnGames" type="button" title="Autofill desde RAWG/Steam">Autofill (RAWG/Steam)</button>
+        <button type="submit">+ Añadir</button>
+    </form>
+
+    <div class="filters" aria-label="Filtrar videojuegos">
+        <div class="filters-inner">
+            <div class="filter-left">
+                <button type="button" class="filter-btn active" data-filter="all" aria-pressed="true">Todos <span class="count" data-count="all">0</span></button>
+                <button type="button" class="filter-btn" data-filter="wishlist" aria-pressed="false">Wishlist <span class="count" data-count="wishlist">0</span></button>
+                <button type="button" class="filter-btn" data-filter="jugando" aria-pressed="false">Jugando <span class="count" data-count="jugando">0</span></button>
+                <button type="button" class="filter-btn" data-filter="completado" aria-pressed="false">Completado <span class="count" data-count="completado">0</span></button>
+                <button type="button" class="filter-btn" data-filter="abandonado" aria-pressed="false">Abandonado <span class="count" data-count="abandonado">0</span></button>
+            </div>
+
+            <div class="filter-right">
+                <input id="searchInput" type="search" placeholder="Buscar por título…" aria-label="Buscar por título">
+                <select id="typeFilter" aria-label="Filtrar por tipo">
+                    <option value="all">Todos los tipos</option>
+                    <option value="PC (Steam)">PC (Steam)</option>
+                    <option value="AAA">AAA</option>
+                    <option value="Indie">Indie</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div id="list" role="list"></div>
+
+    <div id="backdrop" class="backdrop" hidden aria-hidden="true"></div>
+
+    <aside id="sidePanel" class="side-panel" role="dialog" aria-labelledby="sidePanelTitle" aria-hidden="true" hidden>
+        <div class="side-inner">
+            <button id="sideClose" class="side-close" aria-label="Cerrar panel">✕</button>
+            <h2 id="sidePanelTitle">Herramientas</h2>
+            <div class="panel-section">
+                <p class="panel-desc">Exporta tu lista de juegos a un archivo JSON local.</p>
+                <button id="exportPanel" class="panel-button">Exportar JSON</button>
+            </div>
+
+            <div class="panel-section">
+                <p class="panel-desc">Importa un archivo JSON para reemplazar o fusionar con tu colección de juegos.</p>
+                <input type="file" id="importFilePanel" accept="application/json" hidden />
+                <div class="file-row">
+                    <button type="button" id="chooseFilePanel" class="file-choose-btn">Seleccionar archivo</button>
+                    <span id="importFileNamePanel" class="file-name">Ningún archivo seleccionado</span>
+                </div>
+                <div class="file-actions">
+                    <button id="importPanel" class="panel-button">Importar JSON</button>
+                </div>
+            </div>
+            <div class="panel-section">
+                <p class="panel-desc">Configura claves para búsquedas (RAWG para duración / detalles y Steam para logros).</p>
+                <input id="rawgKeyInput" type="text" placeholder="RAWG API Key (opcional)" aria-label="RAWG API Key" />
+                <input id="steamKeyInput" type="text" placeholder="Steam Web API Key (opcional)" aria-label="Steam API Key" style="margin-top:8px;" />
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <button id="saveGamesKeysBtn" class="panel-button">Guardar claves</button>
+                    <button id="clearGamesKeysBtn" class="panel-button" style="background:#fff;color:#d81b60;border:2px solid rgba(255,105,180,0.12);">Borrar</button>
+                </div>
+                <p class="panel-desc" style="margin-top:8px; font-size:0.9rem; color:#777;">RAWG permite obtener tiempo medio de juego. Para obtener logros/aptitud para "platinar" se intentará usar la Steam API si introduces la clave.</p>
+            </div>
+        </div>
+    </aside>
+
+    <div class="hidden-heart" id="hiddenHeart" role="button" tabindex="0" aria-pressed="false" aria-label="Mostrar mensaje secreto">🎮</div>
+
+    <div id="secretMessage">Que empiece la partida 🎮</div>
+
+    <div id="toast" class="toast" aria-live="polite" aria-atomic="true" hidden></div>
+
+    <script src="js/games.js"></script>
+</body>
+</html>

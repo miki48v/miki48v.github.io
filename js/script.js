@@ -10,10 +10,25 @@ const sideClose = document.getElementById('sideClose');
 const chooseFilePanel = document.getElementById('chooseFilePanel');
 const importFileNamePanel = document.getElementById('importFileNamePanel');
 const hiddenHeart = document.getElementById('hiddenHeart');
+const tmdbKeyInput = document.getElementById('tmdbKeyInput');
+const saveTmdbKeyBtn = document.getElementById('saveTmdbKeyBtn');
+const clearTmdbKeyBtn = document.getElementById('clearTmdbKeyBtn');
+const autofillBtn = document.getElementById('autofillBtn');
+const autofillModal = document.getElementById('autofillModal');
+const autofillBackdrop = document.getElementById('autofillBackdrop');
+const autofillClose = document.getElementById('autofillClose');
+const autofillResults = document.getElementById('autofillResults');
+const autofillLoader = document.getElementById('autofillLoader');
 
 // Use items with stable ids to support editing in-place
 let items = JSON.parse(localStorage.getItem('mediaList')) || [];
 let editingId = null;
+// persisted UI state (filter + type + search)
+let currentFilter = localStorage.getItem('mediaList.filter') || 'all';
+let currentTypeFilter = localStorage.getItem('mediaList.type') || 'all';
+let currentSearch = localStorage.getItem('mediaList.search') || '';
+let currentAutofillCandidates = [];
+let tmdbApiKey = localStorage.getItem('tmdb.apiKey') || '';
 
 // Helper to persist
 function save() {
@@ -23,8 +38,18 @@ function save() {
 function renderList() {
     list.innerHTML = '';
     items.forEach((item) => {
+        // skip items that don't match the active filter (status)
+        const itemStatusClass = (item.status || 'Pendiente').toString().toLowerCase().replace(/\s+/g, '-');
+        if (currentFilter !== 'all' && itemStatusClass !== currentFilter) return;
+        // skip items that don't match type filter
+        if (currentTypeFilter !== 'all' && item.type !== currentTypeFilter) return;
+        // skip items that don't match search query in title
+        if (currentSearch && !String(item.title || '').toLowerCase().includes(currentSearch.toLowerCase())) return;
         const div = document.createElement('div');
-        div.className = 'item';
+        // attach status-based class so CSS can style the card edge by state
+        const statusClass = (item.status || 'Pendiente').toString().toLowerCase().replace(/\s+/g, '-');
+        div.className = 'item ' + statusClass;
+        div.setAttribute('data-status', statusClass);
         div.tabIndex = 0; // focusable
         div.setAttribute('data-id', item.id);
 
@@ -88,6 +113,25 @@ function renderList() {
         meta.appendChild(typeSpan);
         meta.appendChild(statusSpan);
 
+        // optional episodes/duration information
+        if (item.episodes || item.duration) {
+            const info = document.createElement('div');
+            info.style.marginTop = '8px';
+            info.className = 'card-extra';
+            const ep = document.createElement('span');
+            ep.className = 'chip';
+            ep.textContent = item.episodes ? `${item.episodes} ep` : '';
+            const est = document.createElement('span');
+            est.className = 'chip';
+            if (item.episodes && item.duration) {
+                const hours = (Number(item.episodes) * Number(item.duration)) / 60;
+                est.textContent = `≈ ${Number(hours.toFixed(1))} h`;
+            }
+            if (ep.textContent) info.appendChild(ep);
+            if (est.textContent) info.appendChild(est);
+            bodyContent.appendChild(info);
+        }
+
         bodyContent.appendChild(meta);
         cardBody.appendChild(bodyContent);
         div.appendChild(cardBody);
@@ -142,7 +186,233 @@ function renderList() {
 
         list.appendChild(div);
     });
+
+    // update count / aria for screen readers (optional, unobtrusive)
+    const visibleCount = document.querySelectorAll('#list .item').length;
+    list.setAttribute('aria-label', `Lista — ${visibleCount} elementos`);
+
+    // update filter counts (considering type + search filters)
+    updateCounts();
 }
+
+function updateCounts() {
+    const counts = { all: 0, pendiente: 0, 'en-simulcast': 0, viendo: 0, terminado: 0 };
+    items.forEach(it => {
+        // apply the non-status filters: type + search
+        if (currentTypeFilter !== 'all' && it.type !== currentTypeFilter) return;
+        if (currentSearch && !String(it.title || '').toLowerCase().includes(currentSearch.toLowerCase())) return;
+        counts.all += 1;
+        const s = (it.status || 'Pendiente').toString().toLowerCase().replace(/\s+/g, '-');
+        if (counts[s] !== undefined) counts[s] += 1;
+    });
+    document.querySelectorAll('.filter-btn .count').forEach(el => {
+        const key = el.parentElement.getAttribute('data-filter');
+        el.textContent = String(counts[key] || 0);
+    });
+}
+
+// filter helpers
+function setFilter(filter) {
+    currentFilter = filter || 'all';
+    localStorage.setItem('mediaList.filter', currentFilter);
+    // update UI buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        const f = btn.getAttribute('data-filter');
+        const active = (f === currentFilter);
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', String(active));
+    });
+    renderList();
+}
+
+// ========== AniList autofill integration ===========
+async function fetchFromAniList(search) {
+    if (!search) return [];
+    const query = `query ($search: String) { Page(perPage: 10) { media(search: $search, type: ANIME) { id title { romaji english native } episodes duration format coverImage { large medium } siteUrl description(asHtml: false) } } }`;
+    try {
+        autofillLoader.hidden = false;
+        autofillResults.innerHTML = '';
+        const res = await fetch('https://graphql.anilist.co', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ query, variables: { search } })
+        });
+        const json = await res.json();
+        const media = json?.data?.Page?.media || [];
+        currentAutofillCandidates = media;
+        return media;
+    } catch (err) {
+        console.warn('AniList lookup failed', err);
+        return [];
+    } finally {
+        autofillLoader.hidden = true;
+    }
+}
+
+async function fetchFromTMDb(search, type) {
+    // type: 'movie' or 'tv'
+    if (!tmdbApiKey) throw new Error('TMDb API key not configured');
+    const base = 'https://api.themoviedb.org/3';
+    const endpoint = type === 'movie' ? '/search/movie' : '/search/tv';
+    const url = `${base}${endpoint}?api_key=${encodeURIComponent(tmdbApiKey)}&query=${encodeURIComponent(search)}&page=1&include_adult=false`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('TMDb search failed: ' + r.status);
+    const json = await r.json();
+    const results = json.results || [];
+    // unify shape like AniList so display logic can reuse
+    return results.map(it => ({
+        id: it.id,
+        title: it.title || it.name || '',
+        format: type === 'movie' ? 'Movie' : 'TV',
+        coverImage: { medium: it.poster_path ? `https://image.tmdb.org/t/p/w300${it.poster_path}` : '', large: it.poster_path ? `https://image.tmdb.org/t/p/w500${it.poster_path}` : '' },
+        tmdb: { media_type: type }
+    }));
+}
+
+async function fetchTMDbDetails(id, type) {
+    const base = 'https://api.themoviedb.org/3';
+    const url = `${base}/${type}/${id}?api_key=${encodeURIComponent(tmdbApiKey)}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('TMDb details failed');
+    const data = await r.json();
+    // For TV: number_of_episodes, episode_run_time (array)
+    if (type === 'tv') {
+        return { episodes: data.number_of_episodes || undefined, duration: Array.isArray(data.episode_run_time) && data.episode_run_time[0] ? data.episode_run_time[0] : undefined };
+    }
+    // movie: runtime
+    if (type === 'movie') {
+        return { episodes: undefined, duration: data.runtime || undefined };
+    }
+    return {};
+}
+
+function openAutofill() {
+    autofillModal.hidden = false;
+    autofillModal.setAttribute('aria-hidden', 'false');
+    autofillBackdrop.hidden = false;
+    autofillBackdrop.setAttribute('aria-hidden', 'false');
+    autofillResults.innerHTML = '';
+}
+
+function closeAutofill() {
+    autofillModal.hidden = true;
+    autofillModal.setAttribute('aria-hidden', 'true');
+    autofillBackdrop.hidden = true;
+    autofillBackdrop.setAttribute('aria-hidden', 'true');
+}
+
+function displayAutofillResults(items) {
+    autofillResults.innerHTML = '';
+    if (!items || !items.length) {
+        autofillResults.textContent = 'No se encontraron resultados';
+        return;
+    }
+    items.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'autofill-item';
+
+        const img = document.createElement('img');
+        img.className = 'autofill-thumb';
+        img.src = m.coverImage?.medium || m.coverImage?.large || '';
+        img.alt = m.title?.romaji || m.title?.english || 'portada';
+
+        const meta = document.createElement('div');
+        meta.className = 'autofill-meta';
+        const h = document.createElement('div');
+        h.className = 'autofill-title';
+        h.textContent = m.title?.english || m.title?.romaji || m.title?.native || 'Sin título';
+        const sub = document.createElement('div');
+        sub.className = 'autofill-sub';
+        sub.textContent = `${m.format || ''} • ${m.episodes ? m.episodes + ' ep' : '–'} • ${m.duration ? m.duration + ' min/ep' : 'duración desconocida'}`;
+
+        meta.appendChild(h);
+        meta.appendChild(sub);
+
+        const actions = document.createElement('div');
+        actions.className = 'autofill-actions';
+        const useBtn = document.createElement('button');
+        useBtn.className = 'autofill-add';
+        useBtn.textContent = 'Usar';
+        useBtn.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            // if item comes from TMDb, fetch details first
+            try {
+                if (m.tmdb && m.tmdb.media_type) {
+                    const details = await fetchTMDbDetails(m.id, m.tmdb.media_type);
+                    m.episodes = details.episodes;
+                    m.duration = details.duration;
+                }
+            } catch (err) {
+                console.warn('TMDb details error', err);
+            }
+
+            // fill form
+            // AniList items put english/romaji in title fields differently; unify
+            const titleStr = m.title?.english || m.title?.romaji || m.title?.native || m.title || '';
+            document.getElementById('title').value = titleStr;
+            document.getElementById('image').value = m.coverImage?.large || m.coverImage?.medium || '';
+            // map format to our type choices
+            const fmt = (m.format || '').toLowerCase();
+            let mapped = 'Serie';
+            if (fmt.includes('movie') || m.tmdb?.media_type === 'movie') mapped = 'Película';
+            else if (fmt.includes('tv') || fmt.includes('ova') || fmt.includes('ona') || m.tmdb?.media_type === 'tv') mapped = 'Serie';
+            else if (fmt.includes('anime')) mapped = 'Anime';
+            document.getElementById('type').value = mapped;
+            document.getElementById('episodes').value = m.episodes || '';
+            document.getElementById('duration').value = m.duration || '';
+            // show a toast with estimated hours
+            if (m.episodes && m.duration) {
+                const hours = (m.episodes * m.duration) / 60;
+                showToast(`Estimado: ${hours.toFixed(1)} h (${m.episodes} ep × ${m.duration} min)`, 'success');
+            } else if (m.episodes) {
+                showToast(`Episodios: ${m.episodes} — duración por episodio desconocida`, 'success');
+            } else if (m.duration) {
+                showToast(`Duración estimada: ${m.duration} min (película)`,'success');
+            }
+            closeAutofill();
+        });
+
+        actions.appendChild(useBtn);
+
+        div.appendChild(img);
+        div.appendChild(meta);
+        div.appendChild(actions);
+        autofillResults.appendChild(div);
+    });
+}
+
+// attach filter button handlers
+document.addEventListener('DOMContentLoaded', () => {
+    const buttons = document.querySelectorAll('.filter-btn');
+    buttons.forEach(b => {
+        b.addEventListener('click', () => setFilter(b.getAttribute('data-filter')));
+    });
+
+    // wire type select + search field
+    const searchInput = document.getElementById('searchInput');
+    const typeSelect = document.getElementById('typeFilter');
+    if (searchInput) {
+        searchInput.value = currentSearch;
+        searchInput.addEventListener('input', (ev) => {
+            currentSearch = ev.target.value || '';
+            localStorage.setItem('mediaList.search', currentSearch);
+            // re-render counts & list
+            renderList();
+        });
+    }
+    if (typeSelect) {
+        typeSelect.value = currentTypeFilter;
+        typeSelect.addEventListener('change', (ev) => {
+            currentTypeFilter = ev.target.value || 'all';
+            localStorage.setItem('mediaList.type', currentTypeFilter);
+            renderList();
+        });
+    }
+
+    // initialize UI based on persisted filter
+    setFilter(currentFilter);
+    // load saved TMDb key to UI
+    if (tmdbKeyInput) tmdbKeyInput.value = tmdbApiKey ? '••••••••' : '';
+});
 
 addForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -153,22 +423,90 @@ addForm.addEventListener('submit', (e) => {
 
     if (!title) return;
 
+    const episodes = document.getElementById('episodes').value || '';
+    const duration = document.getElementById('duration').value || '';
+
     if (editingId) {
         // update existing
         const idx = items.findIndex(i => i.id === editingId);
         if (idx !== -1) {
-            items[idx] = { ...items[idx], title, image, type, status };
+            items[idx] = { ...items[idx], title, image, type, status, episodes: episodes ? Number(episodes) : undefined, duration: duration ? Number(duration) : undefined };
         }
         editingId = null;
     } else {
         // add new with stable id
         const id = Date.now().toString();
-        items.push({ id, title, image, type, status });
+        items.push({ id, title, image, type, status, episodes: episodes ? Number(episodes) : undefined, duration: duration ? Number(duration) : undefined });
     }
 
     save();
     renderList();
     addForm.reset();
+});
+
+// wire autofill button & modal controls
+autofillBtn && autofillBtn.addEventListener('click', async (ev) => {
+    const titleVal = document.getElementById('title').value.trim();
+    if (!titleVal) {
+        alert('Escribe un título para buscar en AniList o pega uno parcial antes de usar Autofill.');
+        return;
+    }
+    // decide which backend to query depending on current 'type' select value
+    const typeVal = document.getElementById('type').value;
+    openAutofill();
+    autofillLoader.hidden = false;
+    let results = [];
+    try {
+        if (typeVal === 'Anime') {
+            results = await fetchFromAniList(titleVal);
+        } else {
+            // Película/Serie: require tmdb key
+            if (!tmdbApiKey) {
+                closeAutofill();
+                alert('Para buscar películas/series reales, primero añade tu TMDb API Key en el panel Herramientas (configuración).');
+                return;
+            }
+            const typeForApi = typeVal === 'Película' ? 'movie' : 'tv';
+            results = await fetchFromTMDb(titleVal, typeForApi);
+        }
+    } catch (err) {
+        showToast('Búsqueda fallida: ' + (err.message || err), 'error');
+        autofillResults.textContent = 'Error al buscar — mira la consola';
+        autofillLoader.hidden = true;
+        return;
+    }
+    autofillLoader.hidden = true;
+    displayAutofillResults(results);
+});
+
+autofillClose && autofillClose.addEventListener('click', closeAutofill);
+autofillBackdrop && autofillBackdrop.addEventListener('click', closeAutofill);
+
+// ESC key closes autofill modal
+document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') {
+        if (autofillModal && !autofillModal.hidden) closeAutofill();
+    }
+});
+
+// wire TMDb key save/clear
+saveTmdbKeyBtn && saveTmdbKeyBtn.addEventListener('click', () => {
+    const v = tmdbKeyInput && tmdbKeyInput.value.trim();
+    if (!v) { showToast('Introduce una clave no vacía', 'error'); return; }
+    // allow saving masked placeholder '••••' to keep existing key
+    if (v.includes('•')) { showToast('Clave guardada previamente', 'success'); return; }
+    tmdbApiKey = v;
+    localStorage.setItem('tmdb.apiKey', tmdbApiKey);
+    showToast('TMDb API key guardada en localStorage', 'success');
+    // display masked
+    tmdbKeyInput.value = '••••••••';
+});
+
+clearTmdbKeyBtn && clearTmdbKeyBtn.addEventListener('click', () => {
+    localStorage.removeItem('tmdb.apiKey');
+    tmdbApiKey = '';
+    tmdbKeyInput.value = '';
+    showToast('TMDb API key borrada', 'success');
 });
 
 function startEdit(id) {
@@ -178,6 +516,8 @@ function startEdit(id) {
     document.getElementById('image').value = item.image || '';
     document.getElementById('type').value = item.type;
     document.getElementById('status').value = item.status;
+    document.getElementById('episodes').value = item.episodes || '';
+    document.getElementById('duration').value = item.duration || '';
     editingId = id;
 }
 
@@ -217,7 +557,9 @@ function importJSON(file) {
                 title: String(entry.title || '').slice(0,200),
                 image: entry.image || '',
                 type: entry.type || 'Serie',
-                status: entry.status || 'Pendiente'
+                status: entry.status || 'Pendiente',
+                episodes: entry.episodes ? Number(entry.episodes) : undefined,
+                duration: entry.duration ? Number(entry.duration) : undefined
             }));
 
             // Ask whether to replace or merge

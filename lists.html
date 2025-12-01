@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista Series que ver</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <div class="header-row">
+        <h1>Lista Series que ver</h1>
+        <!-- Menú desplegable compacto para Export/Import -->
+        <div class="menu" id="menu">
+            <button id="menuToggle" class="menu-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="sidePanel">
+                Opciones <span class="chev" aria-hidden="true">▾</span>
+            </button>
+        </div>
+    </div>
+
+    <form id="addForm" aria-label="Añadir elemento multimedia">
+        <label for="title" class="sr-only">Título</label>
+        <input type="text" id="title" placeholder="Título" required>
+        <label for="image" class="sr-only">URL de la portada (opcional)</label>
+        <input type="url" id="image" placeholder="URL de la portada (opcional)">
+        <select id="type">
+            <option value="Serie">Serie</option>
+            <option value="Anime">Anime</option>
+            <option value="Película">Película</option>
+        </select>
+        <label for="episodes" class="sr-only">Episodios</label>
+        <input type="number" id="episodes" placeholder="Episodios (opcional)" min="0">
+        <label for="duration" class="sr-only">Duración por capítulo (min)</label>
+        <input type="number" id="duration" placeholder="Dur./cap (min)" min="0">
+        <button id="autofillBtn" type="button" title="Autofill desde AniList">Autofill</button>
+        <select id="status">
+            <option value="Pendiente">Pendiente</option>
+            <option value="En simulcast">En simulcast</option>
+            <option value="Viendo">Viendo</option>
+            <option value="Terminado">Terminado</option>
+        </select>
+        <button type="submit">+ Añadir</button>
+    </form>
+
+    <div class="filters" aria-label="Filtrar por estado y tipo">
+        <div class="filters-inner">
+            <div class="filter-left">
+                <button type="button" class="filter-btn active" data-filter="all" aria-pressed="true">Todos <span class="count" data-count="all">0</span></button>
+                <button type="button" class="filter-btn" data-filter="pendiente" aria-pressed="false">Pendiente <span class="count" data-count="pendiente">0</span></button>
+                <button type="button" class="filter-btn" data-filter="en-simulcast" aria-pressed="false">En simulcast <span class="count" data-count="en-simulcast">0</span></button>
+                <button type="button" class="filter-btn" data-filter="viendo" aria-pressed="false">Viendo <span class="count" data-count="viendo">0</span></button>
+                <button type="button" class="filter-btn" data-filter="terminado" aria-pressed="false">Terminado <span class="count" data-count="terminado">0</span></button>
+            </div>
+
+            <div class="filter-right">
+                <input id="searchInput" type="search" placeholder="Buscar por título…" aria-label="Buscar por título">
+                <select id="typeFilter" aria-label="Filtrar por tipo">
+                    <option value="all">Todos los tipos</option>
+                    <option value="Serie">Serie</option>
+                    <option value="Anime">Anime</option>
+                    <option value="Película">Película</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div id="list" role="list"></div>
+
+    <!-- Backdrop for side panel -->
+    <div id="backdrop" class="backdrop" hidden aria-hidden="true"></div>
+
+    <!-- Side panel (slide-over) -->
+    <aside id="sidePanel" class="side-panel" role="dialog" aria-labelledby="sidePanelTitle" aria-hidden="true" hidden>
+        <div class="side-inner">
+            <button id="sideClose" class="side-close" aria-label="Cerrar panel">✕</button>
+            <h2 id="sidePanelTitle">Herramientas</h2>
+            <div class="panel-section">
+                <p class="panel-desc">Exporta tu lista actual a un archivo JSON local.</p>
+                <button id="exportPanel" class="panel-button">Exportar JSON</button>
+            </div>
+
+            <div class="panel-section">
+                <p class="panel-desc">Importa un archivo JSON para reemplazar o fusionar con tu lista.</p>
+                <input type="file" id="importFilePanel" accept="application/json" hidden />
+                <div class="file-row">
+                    <button type="button" id="chooseFilePanel" class="file-choose-btn">Seleccionar archivo</button>
+                    <span id="importFileNamePanel" class="file-name">Ningún archivo seleccionado</span>
+                </div>
+                <div class="file-actions">
+                    <button id="importPanel" class="panel-button">Importar JSON</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <p class="panel-desc">(Opcional) Introduce tu clave API de TMDb para buscar películas/series reales desde el cliente.</p>
+                <input id="tmdbKeyInput" type="text" placeholder="TMDb API Key (opcional)" aria-label="TMDb API Key" />
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <button id="saveTmdbKeyBtn" class="panel-button">Guardar clave</button>
+                    <button id="clearTmdbKeyBtn" class="panel-button" style="background:#fff;color:#d81b60;border:2px solid rgba(255,105,180,0.12);">Borrar</button>
+                </div>
+                <p id="tmdbKeyHint" class="panel-desc" style="margin-top:8px; font-size:0.9rem; color:#777;">Si no introduces clave solo funcionará la búsqueda de animes (AniList).</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- (Herramientas ahora en el menú desplegable dentro del header) -->
+
+    <!-- Corazoncito mágico -->
+    <div class="hidden-heart" id="hiddenHeart" role="button" tabindex="0" aria-pressed="false" aria-label="Mostrar mensaje secreto">
+        <3 
+    </div>
+
+    <!-- Mensaje secreto (no aparece en el código inspeccionando fácil) -->
+    <div id="secretMessage">Ana te quiero un montón <3 </div>
+
+    <!-- Toast notifications -->
+    <div id="toast" class="toast" aria-live="polite" aria-atomic="true" hidden></div>
+
+    <!-- Autofill modal + backdrop (AniList search results) -->
+    <div id="autofillBackdrop" class="backdrop" hidden aria-hidden="true"></div>
+    <div id="autofillModal" class="autofill-modal" role="dialog" aria-hidden="true" hidden>
+        <div class="autofill-inner">
+            <button id="autofillClose" class="side-close" aria-label="Cerrar búsqueda">✕</button>
+            <h3>Buscar en AniList</h3>
+            <div id="autofillLoader" class="autofill-loader" hidden>Buscando…</div>
+            <div id="autofillResults" class="autofill-results" aria-live="polite"></div>
+            <div class="autofill-footer">
+                <small class="muted">Resultados provistos por AniList (public API)</small>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
