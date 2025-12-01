@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista Series que ver</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <h1>Lista Series que ver</h1>
+
+    <form id="addForm">
+        <input type="text" id="title" placeholder="Título" required>
+        <input type="url" id="image" placeholder="URL de la portada (opcional)">
+        <select id="type">
+            <option value="Serie">Serie</option>
+            <option value="Anime">Anime</option>
+            <option value="Película">Película</option>
+        </select>
+        <select id="status">
+            <option value="Pendiente">Pendiente</option>
+            <option value="En simulcast">En simulcast</option>
+            <option value="Viendo">Viendo</option>
+            <option value="Terminado">Terminado</option>
+        </select>
+        <button type="submit">+ Añadir</button>
+    </form>
+
+    <div id="list"></div>
+
+    <!-- Corazoncito mágico -->
+    <div class="hidden-heart" onclick="document.getElementById('secretMessage').classList.toggle('show')">
+        <3 
+    </div>
+
+    <!-- Mensaje secreto (no aparece en el código inspeccionando fácil) -->
+    <div id="secretMessage">Ana te quiero un montón <3 </div>
+
+    <script>
+        const list = document.getElementById('list');
+        const addForm = document.getElementById('addForm');
+        let items = JSON.parse(localStorage.getItem('mediaList')) || [];
+
+        function renderList() {
+            list.innerHTML = '';
+            items.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'item';
+
+                let emoji = '';
+                if (item.type === 'Anime')       emoji = 'JP';
+                if (item.type === 'Película')    emoji = 'TV';
+                if (item.type === 'Serie')       emoji = 'S';
+                if (item.type === 'Mi Vida')       emoji = '<3';
+
+                div.innerHTML = `
+                    <div class="type-icon">${emoji}</div>
+                    ${item.image ? `<img src="${item.image}" class="cover" alt="${item.title}"
+                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` : ''}
+                    <div class="placeholder" style="display:${item.image?'none':'flex'};">?</div>
+
+                    <div class="details">
+                        <h3>${item.title}</h3>
+                        <p><strong>${item.type}</strong></p>
+                        <p class="status ${item.status.toLowerCase().replace(' ', '-')}">Estado: ${item.status}</p>
+                        <div class="actions">
+                            <button onclick="editItem(${index})">Editar</button>
+                            <button onclick="deleteItem(${index})">Eliminar</button>
+                        </div>
+                    </div>
+                `;
+
+                div.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'BUTTON') return;
+                    div.classList.toggle('open');
+                });
+
+                list.appendChild(div);
+            });
+        }
+
+        addForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const title  = document.getElementById('title').value.trim();
+            const image  = document.getElementById('image').value.trim();
+            const type   = document.getElementById('type').value;
+            const status = document.getElementById('status').value;
+
+            if (title) {
+                items.push({ title, image, type, status });
+                localStorage.setItem('mediaList', JSON.stringify(items));
+                renderList();
+                addForm.reset();
+            }
+        });
+
+        window.editItem = function(index) {
+            const item = items[index];
+            document.getElementById('title').value  = item.title;
+            document.getElementById('image').value  = item.image || '';
+            document.getElementById('type').value   = item.type;
+            document.getElementById('status').value = item.status;
+            deleteItem(index);
+        };
+
+        window.deleteItem = function(index) {
+            items.splice(index, 1);
+            localStorage.setItem('mediaList', JSON.stringify(items));
+            renderList();
+        };
+
+        renderList();
+    </script>
+</body>
+</html>

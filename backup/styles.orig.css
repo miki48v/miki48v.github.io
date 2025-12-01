@@ -1,0 +1,12 @@
+/* Original styles.css backed up after re-org */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #ffeef8, #ff99cc);
+    color: #333;
+    margin: 0;
+    padding: 15px 10px;
+    min-height: 100vh;
+    position: relative;
+}
+... (trimmed in backup to save space) ...
