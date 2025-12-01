@@ -54,7 +54,8 @@ button:hover { background: #ff1493; transform: translateY(-3px); }
 .item {
     background: white;
     border-radius: 22px;
-    overflow: hidden;
+    /* allow the details overlay to sit outside the card without changing layout */
+    overflow: visible;
     box-shadow: 0 10px 30px rgba(255,105,180,0.35);
     transition: all 0.4s ease;
     cursor: pointer;
@@ -62,9 +63,10 @@ button:hover { background: #ff1493; transform: translateY(-3px); }
 }
 .item:hover { transform: translateY(-15px); }
 
-.cover { width:100%; height:280px; object-fit:cover; }
+.cover-wrap { width:100%; height:280px; overflow:hidden; border-top-left-radius:22px; border-top-right-radius:22px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg,#ff69b4,#ff1493); }
+.cover { width:100%; height:100%; object-fit:cover; display:block; }
 .placeholder {
-    width:100%; height:280px;
+    width:100%; height:100%;
     background: linear-gradient(135deg,#ff69b4,#ff1493);
     display:flex; align-items:center; justify-content:center;
     font-size:6rem; color:white;
@@ -84,13 +86,28 @@ button:hover { background: #ff1493; transform: translateY(-3px); }
     z-index: 10;
 }
 
-.details {
-    padding: 20px;
-    display: none;
-    background: white;
-    border-top: 6px solid #ff69b4;
-}
-.item.open .details { display: block; animation: slideDown 0.5s ease; }
+        .details {
+            /* absolute overlay positioned under the item, doesn't affect layout */
+            position: absolute;
+            left: 0; right: 0;
+            top: 100%; /* appear just below the item */
+            margin-top: 8px;
+            padding: 18px 20px;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            border: 3px solid rgba(255,105,180,0.12);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-6px);
+            transition: all .22s ease;
+            z-index: 30;
+        }
+        .item.open .details { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+    /* When details contains only actions, tighten layout */
+    .details .actions { justify-content: center; gap: 12px; }
+    .details .actions button { padding: 10px 16px; border-radius: 10px; }
 
 .details h3 { margin:0 0 12px; color:#d81b60; font-size:1.6rem; text-align:center; }
 .details p { margin:10px 0; text-align:center; font-size:15px; }
@@ -155,6 +172,32 @@ button:hover { background: #ff1493; transform: translateY(-3px); }
 .file-actions { width:100%; display:flex; justify-content:flex-end; }
 .file-actions button { padding:8px 12px; border-radius:10px; background:#ff69b4; color:white; border:none; font-weight:700; }
 .file-actions button:hover { background:#ff1493; transform: translateY(-1px); }
+
+/* Card body (stable bottom area) to avoid visible peaks between cards */
+.card-body {
+    background: white;
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
+    min-height: 90px; /* more compact */
+    padding: 12px 12px;
+    box-sizing: border-box;
+    display:flex; align-items:center; justify-content:center;
+}
+
+.card-body-content { width:100%; text-align:center; }
+.card-title-compact { font-weight:800; color:#d81b60; font-size:1.05rem; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.card-meta { display:flex; gap:8px; justify-content:center; align-items:center; }
+.chip { padding:6px 10px; border-radius:999px; font-weight:700; font-size:0.8rem; border:2px solid rgba(255,105,180,0.18); }
+.type-chip { background:linear-gradient(90deg,#fff,#fff); color:#d81b60; }
+.status-chip { color:white; }
+.status-chip.pendiente { background:#e91e63; }
+.status-chip.en-simulcast { background:#ff9800; }
+.status-chip.viendo { background:#2196f3; }
+.status-chip.terminado { background:#4caf50; }
+
+/* hide compact body while details overlay is open */
+/* Keep the compact body visible when the details overlay opens so title/status remain readable */
+.item.open .card-body { opacity:1; transform:translateY(0); transition: none; pointer-events:auto; }
 
 @media (max-width: 900px) {
     .header-row { flex-direction:column; align-items:center }

@@ -40,44 +40,64 @@ function renderList() {
 
         div.appendChild(typeIcon);
 
-        // cover or placeholder
-        if (item.image) {
-            const img = document.createElement('img');
-            img.className = 'cover';
-            img.alt = item.title || 'Portada';
-            img.loading = 'lazy';
-            img.src = item.image;
-            img.addEventListener('error', () => {
-                img.style.display = 'none';
-                placeholder.style.display = 'flex';
-            });
-            div.appendChild(img);
-        }
+        // cover wrapper (clip image to card top rounded corners) and placeholder
+        const coverWrap = document.createElement('div');
+        coverWrap.className = 'cover-wrap';
+
+        const img = document.createElement('img');
+        img.className = 'cover';
+        img.alt = item.title || 'Portada';
+        img.loading = 'lazy';
+        img.src = item.image || '';
+        img.style.display = item.image ? 'block' : 'none';
+        img.addEventListener('error', () => {
+            img.style.display = 'none';
+            placeholder.style.display = 'flex';
+        });
 
         const placeholder = document.createElement('div');
         placeholder.className = 'placeholder';
         placeholder.style.display = item.image ? 'none' : 'flex';
         placeholder.textContent = '?';
-        div.appendChild(placeholder);
+
+        coverWrap.appendChild(img);
+        coverWrap.appendChild(placeholder);
+        div.appendChild(coverWrap);
+
+        // add a body section so the card has a consistent bottom area (prevents visual 'peaks')
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+
+        // Fill with minimal info (title, type, status) so body isn't empty
+        const bodyContent = document.createElement('div');
+        bodyContent.className = 'card-body-content';
+
+        const miniTitle = document.createElement('div');
+        miniTitle.className = 'card-title-compact';
+        miniTitle.textContent = item.title || 'Sin título';
+        bodyContent.appendChild(miniTitle);
+
+        const meta = document.createElement('div');
+        meta.className = 'card-meta';
+        const typeSpan = document.createElement('span');
+        typeSpan.className = 'chip type-chip';
+        typeSpan.textContent = item.type || '';
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'chip status-chip ' + (item.status ? item.status.toLowerCase().replace(' ', '-') : 'pendiente');
+        statusSpan.textContent = item.status ? item.status : 'Pendiente';
+        meta.appendChild(typeSpan);
+        meta.appendChild(statusSpan);
+
+        bodyContent.appendChild(meta);
+        cardBody.appendChild(bodyContent);
+        div.appendChild(cardBody);
 
         // details
         const details = document.createElement('div');
         details.className = 'details';
 
-        const h3 = document.createElement('h3');
-        h3.textContent = item.title;
-        details.appendChild(h3);
-
-        const pType = document.createElement('p');
-        const strong = document.createElement('strong');
-        strong.textContent = item.type;
-        pType.appendChild(strong);
-        details.appendChild(pType);
-
-        const pStatus = document.createElement('p');
-        pStatus.className = 'status ' + item.status.toLowerCase().replace(' ', '-');
-        pStatus.textContent = 'Estado: ' + item.status;
-        details.appendChild(pStatus);
+        // Only show action buttons in the dropdown overlay (Edit / Delete)
+        // The compact card-body already shows title/type/status when closed.
 
         const actions = document.createElement('div');
         actions.className = 'actions';
@@ -107,6 +127,10 @@ function renderList() {
         // toggle details on click or keyboard
         div.addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON') return;
+            // close other opened items so only one is open at a time
+            const opened = document.querySelectorAll('.item.open');
+            opened.forEach(o => { if (o !== div) o.classList.remove('open'); });
+            // toggle this one
             div.classList.toggle('open');
         });
         div.addEventListener('keydown', (e) => {
