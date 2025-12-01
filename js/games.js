@@ -107,6 +107,27 @@ function renderList() {
             bodyContent.appendChild(plat);
         }
 
+        // actions are available inside the details panel (keeps the card compact)
+
+        // achievements and playtime if present
+        if (item.achievements || item.playtime) {
+            const statsRow = document.createElement('div');
+            statsRow.className = 'card-meta';
+            if (item.achievements) {
+                const ach = document.createElement('span'); ach.className = 'chip'; ach.textContent = `${item.achievements} logros`; statsRow.appendChild(ach);
+            }
+            // playtime (hours) if present
+            if (item.playtime && Number(item.playtime) > 0) {
+                const pt = document.createElement('span'); pt.className = 'chip'; pt.textContent = `≈ ${item.playtime} h`; statsRow.appendChild(pt);
+            }
+            // compute and show a 'dificultad del platino' estimate based on achievements
+            const platino = estimatePlatinumDifficulty(item.achievements || 0);
+            if (platino && platino !== 'Desconocida') {
+                const plat = document.createElement('span'); plat.className = 'chip platino-chip'; plat.textContent = `🏆 ${platino}`; statsRow.appendChild(plat);
+            }
+            bodyContent.appendChild(statsRow);
+        }
+
         cardBody.appendChild(bodyContent);
         div.appendChild(cardBody);
 
@@ -167,19 +188,21 @@ addForm.addEventListener('submit', (e) => {
     const image = document.getElementById('image').value.trim();
     const type = document.getElementById('type').value;
     const platform = document.getElementById('platform') ? document.getElementById('platform').value.trim() : '';
+    const achievements = document.getElementById('achievements') ? (parseInt(document.getElementById('achievements').value, 10) || 0) : 0;
+    const playtime = document.getElementById('playtime') ? (parseFloat(document.getElementById('playtime').value) || 0) : 0;
     const status = document.getElementById('status').value;
 
     if (!title) return;
 
-    if (editingId) {
+        if (editingId) {
         const idx = items.findIndex(i => i.id === editingId);
         if (idx !== -1) {
-            items[idx] = { ...items[idx], title, image, type, status, platform };
+            items[idx] = { ...items[idx], title, image, type, status, platform, achievements, playtime };
         }
         editingId = null;
     } else {
         const id = Date.now().toString();
-        items.push({ id, title, image, type, status, platform });
+        items.push({ id, title, image, type, status, platform, achievements, playtime });
     }
 
     save();
@@ -195,7 +218,12 @@ function startEdit(id) {
     document.getElementById('type').value = item.type;
     document.getElementById('status').value = item.status;
     document.getElementById('platform').value = item.platform || '';
+    // fill new fields
+    const achEl = document.getElementById('achievements'); if (achEl) achEl.value = item.achievements || '';
+    const playEl = document.getElementById('playtime'); if (playEl) playEl.value = item.playtime || '';
     editingId = id;
+    // focus the form so users can edit immediately
+    const titleEl = document.getElementById('title'); if (titleEl) { titleEl.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 }
 
 function deleteItem(id) {
@@ -261,6 +289,145 @@ hiddenHeart && hiddenHeart.addEventListener('click', () => {
     hiddenHeart.setAttribute('aria-pressed', String(show));
 });
 
+/* ===== RAWG & Steam autofill integration ===== */
+let rawgApiKey = localStorage.getItem('rawg.apiKey') || '';
+let steamApiKey = localStorage.getItem('steam.apiKey') || '';
+
+const autofillBtnGames = document.getElementById('autofillBtnGames');
+// create small modal area used for results
+const autofillModalGames = document.createElement('div');
+autofillModalGames.className = 'autofill-modal';
+autofillModalGames.hidden = true;
+autofillModalGames.setAttribute('aria-hidden','true');
+autofillModalGames.innerHTML = `
+  <div class="autofill-inner">
+    <button id="autofillCloseGames" class="side-close" aria-label="Cerrar búsqueda">✕</button>
+    <h3>Buscar en RAWG</h3>
+    <div id="autofillLoaderGames" class="autofill-loader" hidden>Buscando…</div>
+    <div id="autofillResultsGames" class="autofill-results" aria-live="polite"></div>
+  </div>
+`;
+document.body.appendChild(autofillModalGames);
+
+const autofillLoaderGames = () => document.getElementById('autofillLoaderGames');
+const autofillResultsGames = () => document.getElementById('autofillResultsGames');
+
+async function fetchFromRAWG(search) {
+    if (!search) return [];
+    const key = rawgApiKey ? `&key=${encodeURIComponent(rawgApiKey)}` : '';
+    const url = `https://api.rawg.io/api/games?search=${encodeURIComponent(search)}&page_size=8${key}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('RAWG search failed');
+    const json = await res.json();
+    return json.results || [];
+}
+
+async function fetchRAWGDetails(id) {
+    const key = rawgApiKey ? `?key=${encodeURIComponent(rawgApiKey)}` : '';
+    const url = `https://api.rawg.io/api/games/${id}${key}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('RAWG details failed');
+    return await res.json();
+}
+
+async function fetchSteamSchema(appid) {
+    if (!steamApiKey) throw new Error('Steam key missing');
+    const url = `https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${encodeURIComponent(steamApiKey)}&appid=${encodeURIComponent(appid)}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('Steam schema fetch failed');
+    const j = await r.json();
+    return j?.game?.availableGameStats?.achievements || [];
+}
+
+
+// Estimate how hard it would be to get the platinum/trophy using a rough heuristic
+function estimatePlatinumDifficulty(count) {
+    if (!count || count === 0) return 'Desconocida';
+    if (count <= 5) return 'Muy Fácil';
+    if (count <= 15) return 'Fácil';
+    if (count <= 30) return 'Media';
+    if (count <= 60) return 'Difícil';
+    return 'Muy Difícil';
+}
+
+function openAutofillGames() { autofillModalGames.hidden = false; autofillModalGames.setAttribute('aria-hidden','false'); autofillLoaderGames().hidden = false; autofillResultsGames().innerHTML = ''; }
+function closeAutofillGames() { autofillModalGames.hidden = true; autofillModalGames.setAttribute('aria-hidden','true'); }
+
+autofillBtnGames && autofillBtnGames.addEventListener('click', async () => {
+    const q = document.getElementById('title').value.trim();
+    if (!q) { alert('Escribe el título del juego antes de buscar'); return; }
+    openAutofillGames();
+    try {
+        const results = await fetchFromRAWG(q);
+        autofillLoaderGames().hidden = true;
+        const container = autofillResultsGames();
+        if (!results.length) { container.textContent = 'No se encontraron resultados'; return; }
+        for (const g of results) {
+            const el = document.createElement('div'); el.className = 'autofill-item';
+            const img = document.createElement('img'); img.className = 'autofill-thumb'; img.src = g.background_image || ''; img.alt = g.name || '';
+            const meta = document.createElement('div'); meta.className = 'autofill-meta';
+            const title = document.createElement('div'); title.className = 'autofill-title'; title.textContent = g.name;
+            const sub = document.createElement('div'); sub.className = 'autofill-sub'; sub.textContent = `Playtime ≈ ${g.playtime || '—'} h • Plataformas: ${(g.platforms || []).map(p=>p.platform.name).join(', ')}`;
+            meta.appendChild(title); meta.appendChild(sub);
+            const actions = document.createElement('div'); actions.className = 'autofill-actions';
+            const useBtn = document.createElement('button'); useBtn.className = 'autofill-add'; useBtn.textContent = 'Usar';
+            useBtn.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                try {
+                    const det = await fetchRAWGDetails(g.id);
+                    document.getElementById('title').value = det.name || g.name;
+                    document.getElementById('image').value = det.background_image || '';
+                    document.getElementById('type').value = (det.genres && det.genres[0] && det.genres[0].name) || 'Indie';
+                    document.getElementById('platform').value = (det.platforms && det.platforms[0] && det.platforms[0].platform.name) || 'Steam';
+                    document.getElementById('achievements').value = det.achievements_count || '';
+                    // RAWG provides an average playtime value — copy to the playtime field
+                    document.getElementById('playtime').value = (det.playtime || g.playtime) || '';
+                    const achCount = det.achievements_count || 0;
+                    // attempt steam achievements if store contains steam url
+                    const steamStore = (det.stores || []).find(s => s.store && /steam/i.test(String(s.store.slug)));
+                    if (steamStore && steamApiKey) {
+                        const match = String(steamStore.url).match(/\/app\/(\d+)/);
+                        if (match) {
+                            try {
+                                const achs = await fetchSteamSchema(match[1]);
+                                document.getElementById('achievements').value = achs.length || document.getElementById('achievements').value;
+                            } catch (err) { console.warn('Steam achievements fetch failed', err); }
+                        }
+                    }
+                    showToast('Autofill completado — revisa los campos', 'success');
+                } catch (err) {
+                    showToast('Error autofill: ' + (err.message || err), 'error');
+                }
+                closeAutofillGames();
+            });
+            actions.appendChild(useBtn);
+            el.appendChild(img); el.appendChild(meta); el.appendChild(actions);
+            container.appendChild(el);
+        }
+    } catch (err) {
+        autofillLoaderGames().hidden = true; autofillResultsGames().textContent = 'Error: ' + (err.message || err);
+    }
+});
+
+// modal close
+document.addEventListener('click', (e) => { if (e.target && e.target.id === 'autofillCloseGames') closeAutofillGames(); });
+
+// keys UI in the games side panel
+const rawgInputEl = document.getElementById('rawgKeyInput');
+const steamInputEl = document.getElementById('steamKeyInput');
+const saveGamesKeysBtn = document.getElementById('saveGamesKeysBtn');
+const clearGamesKeysBtn = document.getElementById('clearGamesKeysBtn');
+if (rawgInputEl) rawgInputEl.value = rawgApiKey ? '••••••' : '';
+if (steamInputEl) steamInputEl.value = steamApiKey ? '••••••' : '';
+saveGamesKeysBtn && saveGamesKeysBtn.addEventListener('click', () => {
+    const r = rawgInputEl && rawgInputEl.value.trim();
+    const s = steamInputEl && steamInputEl.value.trim();
+    if (r && !r.includes('•')) { rawgApiKey = r; localStorage.setItem('rawg.apiKey', rawgApiKey); rawgInputEl.value = '••••••'; }
+    if (s && !s.includes('•')) { steamApiKey = s; localStorage.setItem('steam.apiKey', steamApiKey); steamInputEl.value = '••••••'; }
+    showToast('Claves guardadas', 'success');
+});
+clearGamesKeysBtn && clearGamesKeysBtn.addEventListener('click', () => { localStorage.removeItem('rawg.apiKey'); localStorage.removeItem('steam.apiKey'); rawgApiKey = ''; steamApiKey = ''; if (rawgInputEl) rawgInputEl.value = ''; if (steamInputEl) steamInputEl.value = ''; showToast('Claves borradas', 'success'); });
+
 // side panel behavior (same as original app)
 if (menuToggle && sidePanel && backdrop) {
     const openPanel = () => { menuToggle.setAttribute('aria-expanded','true'); sidePanel.hidden = false; sidePanel.setAttribute('aria-hidden','false'); backdrop.hidden = false; backdrop.setAttribute('aria-hidden','false'); sidePanel.classList.add('open'); backdrop.classList.add('open'); const first = sidePanel.querySelector('button, [tabindex]:not([tabindex="-1"])'); if (first) first.focus(); };
@@ -278,6 +445,50 @@ if (menuToggle && sidePanel && backdrop) {
 
 // init
 renderList();
+
+// wire up filter/search/type controls (same behavior as the lists app)
+document.addEventListener('DOMContentLoaded', () => {
+    // filter buttons
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.addEventListener('click', () => setFilter(b.getAttribute('data-filter')));
+    });
+
+    // wire type select + search field
+    const searchInput = document.getElementById('searchInput');
+    const typeSelect = document.getElementById('typeFilter');
+    if (searchInput) {
+        searchInput.value = currentSearch;
+        searchInput.addEventListener('input', (ev) => {
+            currentSearch = ev.target.value || '';
+            localStorage.setItem('gameList.search', currentSearch);
+            renderList();
+        });
+    }
+    if (typeSelect) {
+        typeSelect.value = currentTypeFilter;
+        typeSelect.addEventListener('change', (ev) => {
+            currentTypeFilter = ev.target.value || 'all';
+            localStorage.setItem('gameList.type', currentTypeFilter);
+            renderList();
+        });
+    }
+
+    // initialize UI based on persisted filter
+    setFilter(currentFilter);
+});
+
+// helper to toggle filter buttons
+function setFilter(filter) {
+    currentFilter = filter || 'all';
+    localStorage.setItem('gameList.filter', currentFilter);
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        const f = btn.getAttribute('data-filter');
+        const pressed = f === currentFilter;
+        btn.classList.toggle('active', pressed);
+        btn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    });
+    renderList();
+}
 
 // toasts (shared behavior)
 const toastEl = document.getElementById('toast');
