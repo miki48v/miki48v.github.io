@@ -8,10 +8,20 @@
 </head>
 <body>
 
-    <h1>Lista Series que ver</h1>
+    <div class="header-row">
+        <h1>Lista Series que ver</h1>
+        <!-- Menú desplegable compacto para Export/Import -->
+        <div class="menu" id="menu">
+            <button id="menuToggle" class="menu-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="sidePanel">
+                Opciones <span class="chev" aria-hidden="true">▾</span>
+            </button>
+        </div>
+    </div>
 
-    <form id="addForm">
+    <form id="addForm" aria-label="Añadir elemento multimedia">
+        <label for="title" class="sr-only">Título</label>
         <input type="text" id="title" placeholder="Título" required>
+        <label for="image" class="sr-only">URL de la portada (opcional)</label>
         <input type="url" id="image" placeholder="URL de la portada (opcional)">
         <select id="type">
             <option value="Serie">Serie</option>
@@ -27,15 +37,47 @@
         <button type="submit">+ Añadir</button>
     </form>
 
-    <div id="list"></div>
+    <div id="list" role="list"></div>
+
+    <!-- Backdrop for side panel -->
+    <div id="backdrop" class="backdrop" hidden aria-hidden="true"></div>
+
+    <!-- Side panel (slide-over) -->
+    <aside id="sidePanel" class="side-panel" role="dialog" aria-labelledby="sidePanelTitle" aria-hidden="true" hidden>
+        <div class="side-inner">
+            <button id="sideClose" class="side-close" aria-label="Cerrar panel">✕</button>
+            <h2 id="sidePanelTitle">Herramientas</h2>
+            <div class="panel-section">
+                <p class="panel-desc">Exporta tu lista actual a un archivo JSON local.</p>
+                <button id="exportPanel" class="panel-button">Exportar JSON</button>
+            </div>
+
+            <div class="panel-section">
+                <p class="panel-desc">Importa un archivo JSON para reemplazar o fusionar con tu lista.</p>
+                <input type="file" id="importFilePanel" accept="application/json" hidden />
+                <div class="file-row">
+                    <button type="button" id="chooseFilePanel" class="file-choose-btn">Seleccionar archivo</button>
+                    <span id="importFileNamePanel" class="file-name">Ningún archivo seleccionado</span>
+                </div>
+                <div class="file-actions">
+                    <button id="importPanel" class="panel-button">Importar JSON</button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- (Herramientas ahora en el menú desplegable dentro del header) -->
 
     <!-- Corazoncito mágico -->
-    <div class="hidden-heart" onclick="document.getElementById('secretMessage').classList.toggle('show')">
+    <div class="hidden-heart" id="hiddenHeart" role="button" tabindex="0" aria-pressed="false" aria-label="Mostrar mensaje secreto">
         <3 
     </div>
 
     <!-- Mensaje secreto (no aparece en el código inspeccionando fácil) -->
     <div id="secretMessage">Ana te quiero un montón <3 </div>
+
+    <!-- Toast notifications -->
+    <div id="toast" class="toast" aria-live="polite" aria-atomic="true" hidden></div>
 
     <script src="js/script.js"></script>
 </body>

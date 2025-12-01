@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1",
+    "title": "Cowboy Bebop",
+    "image": "https://static.example/cowboy.jpg",
+    "type": "Anime",
+    "status": "Terminado"
+  },
+  {
+    "id": "2",
+    "title": "Arcane",
+    "image": "https://static.example/arcane.jpg",
+    "type": "Serie",
+    "status": "Viendo"
+  }
+]
